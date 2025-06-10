@@ -2,10 +2,10 @@
 #include <vector>
 #include <numeric>
 #include <algorithm>
-#include <limits> // Dla std::numeric_limits
-#include <iomanip> // Dla std::fixed i std::setprecision
+#include <limits>
+#include <iomanip>
 
-// Typy dla czytelności
+
 using ProcessingTimes = std::vector<std::vector<double>>;
 using Permutation = std::vector<int>;
 
@@ -31,7 +31,7 @@ double calculate_cmax(const ProcessingTimes& p_times, const Permutation& perm) {
     std::vector<std::vector<double>> C(n_jobs_in_perm, std::vector<double>(m_machines, 0.0));
 
     for (int i = 0; i < n_jobs_in_perm; ++i) { // Iteracja po zadaniach w permutacji
-        int current_job_idx = perm[i]; // Aktualny indeks zadania (z oryginalnego zbioru)
+        int current_job_idx = perm[i]; // Aktualny indeks zadania
         for (int j = 0; j < m_machines; ++j) { // Iteracja po maszynach
             double prev_job_same_machine_completion = (i == 0) ? 0.0 : C[i - 1][j];
             double same_job_prev_machine_completion = (j == 0) ? 0.0 : C[i][j - 1];
@@ -59,9 +59,6 @@ Permutation brute_force_algorithm(const ProcessingTimes& p_times, double& best_c
         best_cmax_val = 0.0;
         return {};
     }
-    if (n_jobs > 10) { // Ostrzeżenie dla dużych n, przegląd może być zbyt wolny
-        std::cerr << "Ostrzeżenie: Przegląd zupełny dla " << n_jobs << " zadań może być bardzo czasochłonny.\n";
-    }
 
 
     Permutation current_perm(n_jobs);
@@ -81,7 +78,7 @@ Permutation brute_force_algorithm(const ProcessingTimes& p_times, double& best_c
     return best_perm;
 }
 
-// 2. Algorytm NEH (i FNEH - różnica głównie w potencjalnych optymalizacjach Cmax, tu standardowa implementacja)
+// 2. Algorytm NEH i FNEH
 Permutation neh_algorithm(const ProcessingTimes& p_times, double& best_cmax_val) {
     int n_jobs = p_times.size();
     if (n_jobs == 0) {
@@ -129,10 +126,10 @@ Permutation neh_algorithm(const ProcessingTimes& p_times, double& best_cmax_val)
             }
         }
         current_best_perm = best_insertion_perm;
-        best_cmax_val = min_cmax_for_insertion; // Aktualizuj Cmax po każdym dodanym zadaniu
+        best_cmax_val = min_cmax_for_insertion;
     }
 
-    // Ostateczny Cmax jest już w best_cmax_val po ostatniej iteracji
+
     return current_best_perm;
 }
 
@@ -144,11 +141,7 @@ Permutation johnson_algorithm(const ProcessingTimes& p_times, double& best_cmax_
         best_cmax_val = 0.0;
         return {};
     }
-    if (p_times[0].size() != 2) {
-        std::cerr << "Błąd: Algorytm Johnsona jest przeznaczony dla 2 maszyn.\n";
-        best_cmax_val = -1.0; // Wartość błędu
-        return {};
-    }
+
 
     struct JobInfo {
         int id;
@@ -188,9 +181,6 @@ Permutation johnson_algorithm(const ProcessingTimes& p_times, double& best_cmax_
 }
 
 // 3. FNEH (NEH z akceleracją)
-// Jak wspomniano, standardowa implementacja NEH jest często traktowana jako FNEH.
-// Jeśli potrzebna jest specyficzna akceleracja Taillarda, wymagałoby to bardziej złożonej logiki.
-// Na potrzeby tego zadania, użyjemy tej samej implementacji co NEH.
 Permutation fneh_algorithm(const ProcessingTimes& p_times, double& best_cmax_val) {
     return neh_algorithm(p_times, best_cmax_val); // Używamy tej samej funkcji
 }
@@ -311,9 +301,7 @@ Permutation branch_and_bound_algorithm(const ProcessingTimes& p_times, double& b
         best_cmax_val = 0.0;
         return {};
     }
-    if (n_jobs > 10) { // Ostrzeżenie dla dużych n, BnB może być wolny
-        std::cerr << "Ostrzeżenie: Branch and Bound dla " << n_jobs << " zadań może być bardzo czasochłonny.\n";
-    }
+
 
 
     // Inicjalizacja górnego ograniczenia (UB) za pomocą heurystyki NEH
@@ -331,19 +319,7 @@ Permutation branch_and_bound_algorithm(const ProcessingTimes& p_times, double& b
 }
 
 int main() {
-    // Przykładowe dane (n zadań, m maszyn)
-    // Przykład z literatury (Taillard's benchmarks - ta001 uproszczony, mniejsze wartości)
-    // Załóżmy 3 zadania, 3 maszyny
-    // ProcessingTimes p_times = {
-    // // M1, M2, M3
-    //     {5, 8, 2}, // Zadanie 1
-    //     {6, 3, 7}, // Zadanie 2
-    //     {4, 9, 5}  // Zadanie 3
-    // };
-    // Oczekiwany Cmax dla perm (1,2,3) = 5+8+7 + 5 = 25 (dla 1->2->3)
-    // 1: [0,5] [5,13] [13,15]
-    // 2: [5+6,11] [max(11,13)+3,16] [max(16,15)+7,23]
-    // 3: [11+4,15] [max(15,16)+9,25] [max(25,23)+5,30]  -> Cmax=30 dla 1,2,3
+
 
     ProcessingTimes p_times_3x3 = {
             {5, 8, 2},
@@ -358,18 +334,7 @@ int main() {
             {1, 6}, // Zadanie 2
             {9, 7}  // Zadanie 3
     };
-    // Johnson:
-    // Z1: 5 < 2 (F) -> p1=5, p2=2 -> G2 (bo 5>=2)
-    // Z2: 1 < 6 (T) -> p1=1, p2=6 -> G1
-    // Z3: 9 < 7 (F) -> p1=9, p2=7 -> G2 (bo 9>=7)
-    // G1: {Z2 (p1=1)} -> sort G1: Z2
-    // G2: {Z1 (p2=2), Z3 (p2=7)} -> sort G2 by p2 desc: Z3, Z1
-    // Perm: Z2 -> Z3 -> Z1 (czyli indeksy 1 -> 2 -> 0)
-    // P = {1, 2, 0}
-    // Z2(1): [0,1] [1,1+6=7]
-    // Z3(2): [1+9,10] [max(10,7)+7,17]
-    // Z1(0): [10+5,15] [max(15,17)+2,19] -> Cmax = 19
-
+    
     double cmax_val;
     Permutation result_perm;
 
